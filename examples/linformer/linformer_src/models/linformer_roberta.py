@@ -18,7 +18,6 @@ from fairseq.models.roberta import (
     RobertaEncoder,
     RobertaModel,
 )
-from fairseq.utils import safe_hasattr
 
 from ..modules.linformer_sentence_encoder import LinformerTransformerEncoder
 
@@ -59,7 +58,7 @@ class LinformerModel(RobertaModel):
         # make sure all arguments are present
         base_architecture(args)
 
-        if not safe_hasattr(args, "max_positions"):
+        if not hasattr(args, "max_positions"):
             args.max_positions = args.tokens_per_sample
 
         encoder = LinformerEncoder(args, task.source_dictionary)

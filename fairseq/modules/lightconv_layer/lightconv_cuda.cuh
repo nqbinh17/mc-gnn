@@ -1,6 +1,6 @@
 /**
  * Copyright (c) Facebook, Inc. and its affiliates.
- *
+ * 
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
@@ -18,14 +18,23 @@
 #include <utility>
 #include <vector>
 
-#include <assert.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define SHFL_MASK 0xffffffff
 
-template <int FS, int SB, int padding_l, typename scalar_t>
-__global__ void lightconv_forward_kernel(
-    const scalar_t* input,
+template<int FS, int SB, int padding_l, typename scalar_t>
+__global__
+void lightconv_forward_kernel(const scalar_t* input,
+                              const scalar_t* filters,
+                              int minibatch, int sequenceLength,
+                              int numFeatures, int numFiltersInBlock,
+                              scalar_t* output);
+
+template<int FS, int SB, int padding_l, typename scalar_t>
+__global__
+void lightconv_grad_wrt_input_kernel(
+    const scalar_t* input, 
     const scalar_t* filters,
     int minibatch,
     int sequenceLength,
@@ -33,18 +42,9 @@ __global__ void lightconv_forward_kernel(
     int numFiltersInBlock,
     scalar_t* output);
 
-template <int FS, int SB, int padding_l, typename scalar_t>
-__global__ void lightconv_grad_wrt_input_kernel(
-    const scalar_t* input,
-    const scalar_t* filters,
-    int minibatch,
-    int sequenceLength,
-    int numFeatures,
-    int numFiltersInBlock,
-    scalar_t* output);
-
-template <int FS, int SB, int padding_l, typename scalar_t>
-__global__ void lightconv_grad_wrt_weights_firstpass_short_kernel(
+template<int FS, int SB, int padding_l, typename scalar_t>
+__global__
+void lightconv_grad_wrt_weights_firstpass_short_kernel(
     const scalar_t* input,
     const scalar_t* gradInput,
     int minibatch,
@@ -54,15 +54,17 @@ __global__ void lightconv_grad_wrt_weights_firstpass_short_kernel(
     int numHeads,
     float* output);
 
-template <int FS, int SB, typename scalar_t>
-__global__ void lightconv_grad_wrt_weights_secondpass_short_kernel(
+template<int FS, int SB, typename scalar_t>
+__global__
+void lightconv_grad_wrt_weights_secondpass_short_kernel(
     const float* input,
-    const int minibatch,
+    const int minibatch, 
     const int numFiltersInBlock,
     scalar_t* output);
 
-template <int FS, int SB, int padding_l, typename scalar_t>
-__global__ void lightconv_grad_wrt_weights_firstpass_kernel(
+template<int FS, int SB, int padding_l, typename scalar_t>
+__global__
+void lightconv_grad_wrt_weights_firstpass_kernel(
     const scalar_t* input,
     const scalar_t* gradInput,
     int minibatch,
@@ -71,9 +73,11 @@ __global__ void lightconv_grad_wrt_weights_firstpass_kernel(
     int numFiltersInBlock,
     float* output);
 
-template <int FS, int SB, typename scalar_t>
-__global__ void lightconv_grad_wrt_weights_secondpass_kernel(
+template<int FS, int SB, typename scalar_t>
+__global__
+void lightconv_grad_wrt_weights_secondpass_kernel(
     const float* input,
-    const int minibatch,
+    const int minibatch, 
     const int numFiltersInBlock,
     scalar_t* output);
+

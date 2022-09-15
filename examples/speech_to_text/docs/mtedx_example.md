@@ -176,11 +176,10 @@ For multilingual models, we force decoding from the target language ID token (as
 ## Citation
 Please cite as:
 ```
-@inproceedings{salesky2021mtedx,
-  title={Multilingual TEDx Corpus for Speech Recognition and Translation},
-  author={Elizabeth Salesky and Matthew Wiesner and Jacob Bremerman and Roldano Cattoni and Matteo Negri and Marco Turchi and Douglas W. Oard and Matt Post},
-  booktitle={Proceedings of Interspeech},
-  year={2021},
+@misc{salesky2021mtedx,
+      title={Multilingual TEDx Corpus for Speech Recognition and Translation},
+      author={Elizabeth Salesky and Matthew Wiesner and Jacob Bremerman and Roldano Cattoni and Matteo Negri and Marco Turchi and Douglas W. Oard and Matt Post},
+      year={2021},
 }
 
 @inproceedings{wang2020fairseqs2t,

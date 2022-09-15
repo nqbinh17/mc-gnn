@@ -134,8 +134,3 @@ experimental/*
 
 # Weights and Biases logs
 wandb/
-
-# Hydra artifacts
-nohup.out
-multirun
-outputs

@@ -3,19 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-
-from dataclasses import dataclass
-
-from fairseq.dataclass import FairseqDataclass
 from fairseq.scoring import BaseScorer, register_scorer
 
 
-@dataclass
-class ChrFScorerConfig(FairseqDataclass):
-    pass
-
-
-@register_scorer("chrf", dataclass=ChrFScorerConfig)
+@register_scorer("chrf")
 class ChrFScorer(BaseScorer):
     def __init__(self, args):
         super(ChrFScorer, self).__init__(args)

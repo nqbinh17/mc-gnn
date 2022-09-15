@@ -8,7 +8,7 @@ import logging
 import numpy as np
 import torch
 from fairseq.data import FairseqDataset, data_utils
-
+from fairseq.my_graph.ucca import UCCALabel, LineUCCALabel 
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,86 @@ def collate(
             )
     else:
         ntokens = src_lengths.sum().item()
+    # START YOUR CODE
+    n = len(src_tokens)
+    graph_padding = torch.tensor([pad_idx] * n).long().unsqueeze(-1)
+    src_tokens = torch.cat([graph_padding, src_tokens],dim=1)
+    extra_length = src_tokens.eq(pad_idx).long().sum(1)
+    max_len_select = max(len(samples[i]['src_selected_idx']) for i in range(len(samples)))
+    max_len_nodes = max(len(samples[i]['src_node_idx']) for i in range(len(samples)))
+    seq_len = src_tokens.size(1)
+    src_labels = [samples[i]['src_labels'] for i in sort_order]
+    def tensorSelectedIndex(data, obj, max_len):
+        i, e = data
+        x = samples[i][obj] + e
+        pad = torch.LongTensor([0] * (max_len - x.size(0)))
+        return torch.cat([pad, x], dim = 0)
+    src_selected_idx = torch.cat([tensorSelectedIndex(data, "src_selected_idx", max_len_select) for data in zip(sort_order, extra_length)],dim=0).reshape(-1, max_len_select)
+    src_node_idx = torch.cat([tensorSelectedIndex(data, "src_node_idx", max_len_nodes) for data in zip(sort_order, extra_length)],dim=0).reshape(-1, max_len_nodes)
+    
+    "1. Process for src_edges"
+    def tensorEdges(data, item):
+        i, [order, e] = data
+        if samples[order][item] is None:
+            return None
+        edge = samples[order][item] + e # move idx to the right, since padding to the left
+        edge = edge + i * seq_len
+        return edge
+    src_edges = None
+    for data in enumerate(zip(sort_order, extra_length)):
+      r = tensorEdges(data, "src_edges")
+      if src_edges == None:
+        src_edges = r
+      else:
+        src_edges = torch.cat([src_edges, r], dim = 1) # shape = [2, Edges]
+    
+    
+    "1. Process for src_labels"
+    src_labels = None
+    
+    for s in sort_order:
+        l = samples[s]['src_labels']
+        if src_labels == None:
+            src_labels = l
+        else:
+            src_labels = torch.cat([src_labels, l], dim = 0) # shape = [Labels]
+    assert src_edges.size(1) == src_labels.size(0)
 
+
+    
+    src_line_edges = None
+    for data in enumerate(zip(sort_order, extra_length)):
+      r = tensorEdges(data, "src_line_edges")
+      if r is None:
+          break
+      if src_line_edges == None:
+        src_line_edges = r
+      else:
+        src_line_edges = torch.cat([src_line_edges, r], dim = 1) # shape = [2, Edges]
+
+    # Process src_subgraphs
+    src_subgraphs = {}
+    item = "src_subgraphs"
+    if samples[0][item] is not None:
+      num_layer = len(samples[0][item])
+      string = "src_graph"
+      for i, (order, extra) in enumerate(zip(sort_order, extra_length)):
+          if num_layer is None:
+              break
+          for n in range(num_layer):
+              s = string + str(n+1) # src_graph1, 2, 3
+              edges = samples[order][item][n]
+              indices = edges.coalesce().indices() + extra + i * seq_len
+              #values = edges.values()
+              if s in src_subgraphs:
+                  src_subgraphs[s] = torch.cat([src_subgraphs[s], indices], dim = 1)
+              else:
+                  src_subgraphs[s] = indices
+    else:
+      src_subgraphs = {"1":0,"2":0,"3":0,"4":0,"5":0,"6":0}
+    
+
+    # END YOUR CODE
     batch = {
         "id": id,
         "nsentences": len(samples),
@@ -117,9 +196,20 @@ def collate(
         "net_input": {
             "src_tokens": src_tokens,
             "src_lengths": src_lengths,
+            "src_edges": src_edges,
+            "src_labels": src_labels,
+            "src_selected_idx": src_selected_idx,
+            "src_node_idx": src_node_idx,
+            "src_line_edges": src_line_edges,
+            "src_subgraphs": src_subgraphs,
         },
         "target": target,
     }
+    # START CODE
+    #for i in range(num_layer):
+    #    s = string + str(i+1)
+    #    batch[net_input][s] = src_subgraphs[s]
+    # END CODE
     if prev_output_tokens is not None:
         batch["net_input"]["prev_output_tokens"] = prev_output_tokens.index_select(
             0, sort_order
@@ -163,7 +253,6 @@ def collate(
         batch["constraints"] = constraints.index_select(0, sort_order)
 
     return batch
-
 
 class LanguagePairDataset(FairseqDataset):
     """
@@ -226,6 +315,10 @@ class LanguagePairDataset(FairseqDataset):
         src_lang_id=None,
         tgt_lang_id=None,
         pad_to_multiple=1,
+        src_edges = None,
+        src_labels = None,
+        src_line_edges = None,
+        src_subgraphs = None,
     ):
         if tgt_dict is not None:
             assert src_dict.pad() == tgt_dict.pad()
@@ -297,7 +390,31 @@ class LanguagePairDataset(FairseqDataset):
         else:
             self.buckets = None
         self.pad_to_multiple = pad_to_multiple
+        # START YOUR CODE
+        self.src_edges = src_edges
+        self.ucca = UCCALabel()
+        self.src_labels = self.ucca.Label2Seq(src_labels)
+        self.intnode_index = self.src_dict.intnode()
+        self.src_selected_idx = self.get_selected_index()
+        self.src_node_idx = self.get_node_index()
+        self.src_line_edges = src_line_edges
+        self.src_subgraphs = src_subgraphs
+        # END YOUR CODE
+    # START CODE
+    def get_selected_index(self):
+        def selectIndexTensor(idx):
+            select = idx != self.intnode_index
+            position = torch.LongTensor(list(range(idx.size(0))))
+            return position[select]
+        return [selectIndexTensor(src) for src in self.src]
+    def get_node_index(self):
+        def nodeIndexTensor(idx):
+            select = idx == self.intnode_index
+            position = torch.LongTensor(list(range(idx.size(0))))
+            return position[select]
+        return [nodeIndexTensor(src) for src in self.src]
 
+    # END CODE
     def get_batch_shapes(self):
         return self.buckets
 
@@ -331,6 +448,12 @@ class LanguagePairDataset(FairseqDataset):
             "id": index,
             "source": src_item,
             "target": tgt_item,
+            "src_edges": self.src_edges[index],
+            "src_labels": self.src_labels[index],
+            "src_selected_idx": self.src_selected_idx[index],
+            "src_node_idx": self.src_node_idx[index],
+            "src_line_edges": self.src_line_edges[index] if self.src_line_edges is not None else None,
+            "src_subgraphs": self.src_subgraphs[index] if self.src_subgraphs is not None else None,
         }
         if self.align_dataset is not None:
             example["alignment"] = self.align_dataset[index]
@@ -470,8 +593,5 @@ class LanguagePairDataset(FairseqDataset):
             list: list of removed indices
         """
         return data_utils.filter_paired_dataset_indices_by_size(
-            self.src_sizes,
-            self.tgt_sizes,
-            indices,
-            max_sizes,
+            self.src_sizes, self.tgt_sizes, indices, max_sizes,
         )

@@ -4,16 +4,15 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-import sys
 from typing import Dict, List, Optional
+import sys
 
 import torch
 import torch.nn as nn
-from torch import Tensor
-
 from fairseq import search, utils
 from fairseq.data import data_utils
 from fairseq.models import FairseqIncrementalDecoder
+from torch import Tensor
 from fairseq.ngram_repeat_block import NGramRepeatBlock
 
 
@@ -81,7 +80,6 @@ class SequenceGenerator(nn.Module):
         self.beam_size = beam_size
         # the max beam size is the dictionary size - 1, since we never select pad
         self.beam_size = min(beam_size, self.vocab_size - 1)
-        self.model.set_decoder_beam_size(self.beam_size)
         self.max_len_a = max_len_a
         self.max_len_b = max_len_b
         self.min_len = min_len
@@ -173,9 +171,7 @@ class SequenceGenerator(nn.Module):
                 yield id, src, ref, hypos[i]
 
     @torch.no_grad()
-    def generate(
-        self, models, sample: Dict[str, Dict[str, Tensor]], **kwargs
-    ) -> List[List[Dict[str, Tensor]]]:
+    def generate(self, models, sample: Dict[str, Dict[str, Tensor]], **kwargs) -> List[List[Dict[str, Tensor]]]:
         """Generate translations. Match the api of other fairseq generators.
 
         Args:
@@ -227,10 +223,7 @@ class SequenceGenerator(nn.Module):
                 else torch.tensor(src_tokens.size(-1)).to(src_tokens)
             )
         else:
-            raise Exception(
-                "expected src_tokens or source in net input. input keys: "
-                + str(net_input.keys())
-            )
+            raise Exception("expected src_tokens or source in net input. input keys: " + str(net_input.keys()))
 
         # bsz: total number of sentences in beam
         # Note that src_tokens may have more than 2 dimensions (i.e. audio features)
@@ -335,9 +328,7 @@ class SequenceGenerator(nn.Module):
                 encoder_outs = self.model.reorder_encoder_out(
                     encoder_outs, reorder_state
                 )
-            with torch.autograd.profiler.record_function(
-                "EnsembleModel: forward_decoder"
-            ):
+            with torch.autograd.profiler.record_function("EnsembleModel: forward_decoder"):
                 lprobs, avg_attn_scores = self.model.forward_decoder(
                     tokens[:, : step + 1],
                     encoder_outs,
@@ -663,38 +654,44 @@ class SequenceGenerator(nn.Module):
                 prev += 1
             else:
                 cum_unfin.append(prev)
-        cum_fin_tensor = torch.tensor(cum_unfin, dtype=torch.int).to(bbsz_idx)
 
-        unfin_idx = torch.div(bbsz_idx, beam_size, rounding_mode="trunc")
-        sent = unfin_idx + torch.index_select(cum_fin_tensor, 0, unfin_idx)
-
-        # Create a set of "{sent}{unfin_idx}", where
+        # The keys here are of the form "{sent}_{unfin_idx}", where
         # "unfin_idx" is the index in the current (possibly reduced)
         # list of sentences, and "sent" is the index in the original,
         # unreduced batch
-        # For every finished beam item
-        # sentence index in the current (possibly reduced) batch
-        seen = (sent << 32) + unfin_idx
-        unique_seen: List[int] = torch.unique(seen).tolist()
+        # set() is not supported in script export
+        sents_seen: Dict[str, Optional[Tensor]] = {}
 
-        if self.match_source_len:
-            condition = step > torch.index_select(src_lengths, 0, unfin_idx)
-            eos_scores = torch.where(condition, torch.tensor(-math.inf), eos_scores)
-        sent_list: List[int] = sent.tolist()
+        # For every finished beam item
         for i in range(bbsz_idx.size()[0]):
+            idx = bbsz_idx[i]
+            score = eos_scores[i]
+            # sentence index in the current (possibly reduced) batch
+            unfin_idx = idx // beam_size
+            # sentence index in the original (unreduced) batch
+            sent = unfin_idx + cum_unfin[unfin_idx]
+            # Cannot create dict for key type '(int, int)' in torchscript.
+            # The workaround is to cast int to string
+            seen = str(sent.item()) + "_" + str(unfin_idx.item())
+            if seen not in sents_seen:
+                sents_seen[seen] = None
+
+            if self.match_source_len and step > src_lengths[unfin_idx]:
+                score = torch.tensor(-math.inf).to(score)
+
             # An input sentence (among those in a batch) is finished when
             # beam_size hypotheses have been collected for it
-            if len(finalized[sent_list[i]]) < beam_size:
+            if len(finalized[sent]) < beam_size:
                 if attn_clone is not None:
                     # remove padding tokens from attn scores
                     hypo_attn = attn_clone[i]
                 else:
                     hypo_attn = torch.empty(0)
 
-                finalized[sent_list[i]].append(
+                finalized[sent].append(
                     {
                         "tokens": tokens_clone[i],
-                        "score": eos_scores[i],
+                        "score": score,
                         "attention": hypo_attn,  # src_len x tgt_len
                         "alignment": torch.empty(0),
                         "positional_scores": pos_scores[i],
@@ -702,16 +699,17 @@ class SequenceGenerator(nn.Module):
                 )
 
         newly_finished: List[int] = []
-        for unique_s in unique_seen:
-            # check termination conditions for this sentence
-            unique_sent: int = unique_s >> 32
-            unique_unfin_idx: int = unique_s - (unique_sent << 32)
 
-            if not finished[unique_sent] and self.is_finished(
-                step, unique_unfin_idx, max_len, len(finalized[unique_sent]), beam_size
+        for seen in sents_seen.keys():
+            # check termination conditions for this sentence
+            sent: int = int(float(seen.split("_")[0]))
+            unfin_idx: int = int(float(seen.split("_")[1]))
+
+            if not finished[sent] and self.is_finished(
+                step, unfin_idx, max_len, len(finalized[sent]), beam_size
             ):
-                finished[unique_sent] = True
-                newly_finished.append(unique_unfin_idx)
+                finished[sent] = True
+                newly_finished.append(unfin_idx)
 
         return newly_finished
 
@@ -761,21 +759,7 @@ class EnsembleModel(nn.Module):
         return self.has_incremental
 
     def max_decoder_positions(self):
-        return min(
-            [
-                m.max_decoder_positions()
-                for m in self.models
-                if hasattr(m, "max_decoder_positions")
-            ]
-            + [sys.maxsize]
-        )
-
-    def set_decoder_beam_size(self, beam_size):
-        """Set beam size for efficient beamable enc-dec attention."""
-        if beam_size > 1:
-            for model in self.models:
-                if hasattr(model, "set_beam_size"):
-                    model.set_beam_size(beam_size)
+        return min([m.max_decoder_positions() for m in self.models if hasattr(m, "max_decoder_positions")] + [sys.maxsize])
 
     @torch.jit.export
     def forward_encoder(self, net_input: Dict[str, Tensor]):

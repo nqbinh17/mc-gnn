@@ -14,7 +14,6 @@ from typing import List
 
 import numpy as np
 import torch
-
 from fairseq.data import FairseqDataset, data_utils
 from fairseq.distributed import utils as distributed_utils
 
@@ -407,8 +406,8 @@ class SampledMultiDataset(FairseqDataset):
                     ).hexdigest(),
                     16,
                 )
-                % (2**32),
-                self.seed % (2**32),  # global seed
+                % (2 ** 32),
+                self.seed % (2 ** 32),  # global seed
                 self._cur_epoch,  # epoch index,
             ]
         )

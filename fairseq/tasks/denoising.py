@@ -135,6 +135,7 @@ class DenoisingTask(LegacyFairseqTask):
             'e.g., "train,valid" (default: all dataset splits)',
         )
 
+
     def __init__(self, args, dictionary):
         super().__init__(args)
         self.dictionary = dictionary

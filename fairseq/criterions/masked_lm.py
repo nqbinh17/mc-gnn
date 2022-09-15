@@ -3,30 +3,23 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from dataclasses import dataclass
 import math
-from omegaconf import II
 
 import torch
+import torch.nn.functional as F
 from fairseq import metrics, modules, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
-from fairseq.dataclass import FairseqDataclass
 
 
-@dataclass
-class MaskedLmConfig(FairseqDataclass):
-    tpu: bool = II("common.tpu")
-
-
-@register_criterion("masked_lm", dataclass=MaskedLmConfig)
+@register_criterion("masked_lm")
 class MaskedLmLoss(FairseqCriterion):
     """
     Implementation for the loss used in masked language model (MLM) training.
     """
 
-    def __init__(self, cfg: MaskedLmConfig, task):
+    def __init__(self, task, tpu=False):
         super().__init__(task)
-        self.tpu = cfg.tpu
+        self.tpu = tpu
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.

@@ -8,6 +8,7 @@ import time
 from collections import OrderedDict
 from typing import Dict, Optional
 
+
 try:
     import torch
 
@@ -16,6 +17,7 @@ try:
             return a.to(b)
         else:
             return a
+
 
 except ImportError:
     torch = None

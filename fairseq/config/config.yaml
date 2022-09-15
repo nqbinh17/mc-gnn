@@ -5,7 +5,7 @@ hydra:
     dir: .
 
 defaults:
-    - _self_
+    - config_schema
     - task: null
     - model: null
     - criterion: cross_entropy

@@ -29,9 +29,8 @@ logger = logging.getLogger(__name__)
 
 def check_type(module, expected_type):
     if hasattr(module, "unwrapped_module"):
-        assert isinstance(
-            module.unwrapped_module, expected_type
-        ), f"{type(module.unwrapped_module)} != {expected_type}"
+        assert isinstance(module.unwrapped_module, expected_type), \
+            f"{type(module.unwrapped_module)} != {expected_type}"
     else:
         assert isinstance(module, expected_type), f"{type(module)} != {expected_type}"
 
@@ -115,9 +114,7 @@ class BaseFairseqModel(nn.Module):
         """
 
         if model_cfg is None and args is not None:
-            logger.warn(
-                "using 'args' is deprecated, please update your code to use dataclass config"
-            )
+            logger.warn("using 'args' is deprecated, please update your code to use dataclass config")
             model_cfg = convert_namespace_to_omegaconf(args).model
 
         self.upgrade_state_dict(state_dict)
@@ -457,9 +454,7 @@ class FairseqMultiModel(BaseFairseqModel):
         """
 
         if model_cfg is None and args is not None:
-            logger.warn(
-                "using 'args' is deprecated, please update your code to use dataclass config"
-            )
+            logger.warn("using 'args' is deprecated, please update your code to use dataclass config")
             model_cfg = convert_namespace_to_omegaconf(args).model
 
         self.upgrade_state_dict(state_dict)

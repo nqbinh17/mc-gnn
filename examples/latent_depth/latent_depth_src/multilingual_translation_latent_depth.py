@@ -5,7 +5,6 @@
 
 from fairseq.tasks import register_task
 from fairseq.tasks.multilingual_translation import MultilingualTranslationTask
-from fairseq.utils import safe_hasattr
 
 from .loss.latent_depth import LatentLayersKLLoss, LatentLayersSparsityLoss
 
@@ -175,14 +174,14 @@ class MultilingualTranslationTaskLatentDepth(MultilingualTranslationTask):
     @property
     def encoder_latent_layer(self):
         return (
-            safe_hasattr(self.args, "encoder_latent_layer")
+            hasattr(self.args, "encoder_latent_layer")
             and self.args.encoder_latent_layer
         )
 
     @property
     def decoder_latent_layer(self):
         return (
-            safe_hasattr(self.args, "decoder_latent_layer")
+            hasattr(self.args, "decoder_latent_layer")
             and self.args.decoder_latent_layer
         )
 

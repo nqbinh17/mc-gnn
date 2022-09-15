@@ -7,7 +7,6 @@ import contextlib
 import logging
 import os
 from collections import OrderedDict
-from argparse import ArgumentError
 
 import torch
 from fairseq import metrics, options, utils
@@ -78,14 +77,10 @@ class MultilingualTranslationTask(LegacyFairseqTask):
                             help='pad the source on the left (default: True)')
         parser.add_argument('--left-pad-target', default='False', type=str, metavar='BOOL',
                             help='pad the target on the left (default: False)')
-        try:
-            parser.add_argument('--max-source-positions', default=1024, type=int, metavar='N',
-                                help='max number of tokens in the source sequence')
-            parser.add_argument('--max-target-positions', default=1024, type=int, metavar='N',
-                                help='max number of tokens in the target sequence')
-        except ArgumentError:
-            # this might have already been defined. Once we transition this to hydra it should be fine to add it here.
-            pass
+        parser.add_argument('--max-source-positions', default=1024, type=int, metavar='N',
+                            help='max number of tokens in the source sequence')
+        parser.add_argument('--max-target-positions', default=1024, type=int, metavar='N',
+                            help='max number of tokens in the target sequence')
         parser.add_argument('--upsample-primary', default=1, type=int,
                             help='amount to upsample primary dataset')
         parser.add_argument('--encoder-langtok', default=None, type=str, choices=['src', 'tgt'],
@@ -281,7 +276,7 @@ class MultilingualTranslationTask(LegacyFairseqTask):
             eval_key=lang_pair,
         )
 
-    def build_model(self, args, from_checkpoint=False):
+    def build_model(self, args):
         def check_args():
             messages = []
             if (
@@ -316,7 +311,7 @@ class MultilingualTranslationTask(LegacyFairseqTask):
 
         from fairseq import models
 
-        model = models.build_model(args, self, from_checkpoint)
+        model = models.build_model(args, self)
         if not isinstance(model, FairseqMultiModel):
             raise ValueError(
                 "MultilingualTranslationTask requires a FairseqMultiModel architecture"

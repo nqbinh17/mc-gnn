@@ -130,7 +130,6 @@ def log_scalar(
             agg.add_meter(key, AverageMeter(round=round), priority)
         agg[key].update(value, weight)
 
-
 def log_scalar_sum(
     key: str,
     value: float,
@@ -310,7 +309,6 @@ def load_state_dict(state_dict):
 def xla_metrics_report():
     try:
         import torch_xla.debug.metrics as met
-
         print(met.metrics_report())
     except ImportError:
         return

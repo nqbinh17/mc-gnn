@@ -6,9 +6,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#include <torch/torch.h> // @manual=//caffe2:torch_extension
 #include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
-#include <torch/torch.h> // @manual=//caffe2:torch_extension
+#include <vector>
 #include <algorithm>
 #include <cstdint>
 #include <iosfwd>
@@ -16,7 +17,6 @@
 #include <new>
 #include <string>
 #include <utility>
-#include <vector>
 
 using namespace ::std;
 

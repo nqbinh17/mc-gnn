@@ -54,27 +54,17 @@ def gen_parser_from_dataclass(
     parser: ArgumentParser,
     dataclass_instance: FairseqDataclass,
     delete_default: bool = False,
-    with_prefix: Optional[str] = None,
 ) -> None:
-    """
-    convert a dataclass instance to tailing parser arguments.
-
-    If `with_prefix` is provided, prefix all the keys in the resulting parser with it. It means that we are
-    building a flat namespace from a structured dataclass (see transformer_config.py for example).
-    """
+    """convert a dataclass instance to tailing parser arguments"""
 
     def argparse_name(name: str):
-        if name == "data" and (with_prefix is None or with_prefix == ""):
-            # normally data is positional args, so we don't add the -- nor the prefix
+        if name == "data":
+            # normally data is positional args
             return name
         if name == "_name":
             # private member, skip
             return None
-        full_name = "--" + name.replace("_", "-")
-        if with_prefix is not None and with_prefix != "":
-            # if a prefix is specified, construct the prefixed arg name
-            full_name = with_prefix + "-" + full_name[2:]  # strip -- when composing
-        return full_name
+        return "--" + name.replace("_", "-")
 
     def get_kwargs_from_dc(
         dataclass_instance: FairseqDataclass, k: str
@@ -142,10 +132,6 @@ def gen_parser_from_dataclass(
                 if field_default is not MISSING:
                     kwargs["default"] = field_default
 
-        # build the help with the hierarchical prefix
-        if with_prefix is not None and with_prefix != "" and field_help is not None:
-            field_help = with_prefix[2:] + ": " + field_help
-
         kwargs["help"] = field_help
         if field_const is not None:
             kwargs["const"] = field_const
@@ -159,14 +145,7 @@ def gen_parser_from_dataclass(
         if field_name is None:
             continue
         elif inspect.isclass(field_type) and issubclass(field_type, FairseqDataclass):
-            # for fields that are of type FairseqDataclass, we can recursively
-            # add their fields to the namespace (so we add the args from model, task, etc. to the root namespace)
-            prefix = None
-            if with_prefix is not None:
-                # if a prefix is specified, then we don't want to copy the subfields directly to the root namespace
-                # but we prefix them with the name of the current field.
-                prefix = field_name
-            gen_parser_from_dataclass(parser, field_type(), delete_default, prefix)
+            gen_parser_from_dataclass(parser, field_type(), delete_default)
             continue
 
         kwargs = get_kwargs_from_dc(dataclass_instance, k)
@@ -440,6 +419,20 @@ def convert_namespace_to_omegaconf(args: Namespace) -> DictConfig:
     return cfg
 
 
+def populate_dataclass(
+    dataclass: FairseqDataclass,
+    args: Namespace,
+) -> FairseqDataclass:
+    for k in dataclass.__dataclass_fields__.keys():
+        if k.startswith("_"):
+            # private member, skip
+            continue
+        if hasattr(args, k):
+            setattr(dataclass, k, getattr(args, k))
+
+    return dataclass
+
+
 def overwrite_args_by_name(cfg: DictConfig, overrides: Dict[str, any]):
     # this will be deprecated when we get rid of argparse and model_overrides logic
 
@@ -474,7 +467,7 @@ def overwrite_args_by_name(cfg: DictConfig, overrides: Dict[str, any]):
                     cfg[k] = overrides[k]
 
 
-def merge_with_parent(dc: FairseqDataclass, cfg: DictConfig, remove_missing=False):
+def merge_with_parent(dc: FairseqDataclass, cfg: DictConfig, remove_missing=True):
     if remove_missing:
 
         if is_dataclass(dc):

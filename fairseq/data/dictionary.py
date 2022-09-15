@@ -35,6 +35,9 @@ class Dictionary:
         self.pad_index = self.add_symbol(pad)
         self.eos_index = self.add_symbol(eos)
         self.unk_index = self.add_symbol(unk)
+        # START YOUR CODE
+        self.intnode_index = self.add_symbol("IntNode")
+        # END YOUR CODE
         if extra_special_symbols:
             for s in extra_special_symbols:
                 self.add_symbol(s)
@@ -92,8 +95,7 @@ class Dictionary:
             )
 
         extra_symbols_to_ignore = set(extra_symbols_to_ignore or [])
-        if not include_eos:
-            extra_symbols_to_ignore.add(self.eos())
+        extra_symbols_to_ignore.add(self.eos())
 
         def token_string(i):
             if i == self.unk():
@@ -199,7 +201,10 @@ class Dictionary:
     def bos(self):
         """Helper to get index of beginning-of-sentence symbol"""
         return self.bos_index
-
+    # START YOUR CODE
+    def intnode(self):
+        return self.intnode_index
+    # END YOUR CODE
     def pad(self):
         """Helper to get index of pad symbol"""
         return self.pad_index
@@ -268,7 +273,7 @@ class Dictionary:
                 self.add_symbol(word, n=count, overwrite=overwrite)
             except ValueError:
                 raise ValueError(
-                    f"Incorrect dictionary format, expected '<token> <cnt> [flags]': \"{line}\""
+                    "Incorrect dictionary format, expected '<token> <cnt> [flags]'"
                 )
 
     def _save(self, f, kv_iterator):

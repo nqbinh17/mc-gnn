@@ -38,6 +38,7 @@ class Model(nn.Module):
 
 
 class TestModuleProxyWrapper(unittest.TestCase):
+
     def _get_module(self):
         module = Model()
         wrapped_module = MockDDPWrapper(module)

@@ -1,6 +1,4 @@
 # Discriminative Reranking for Neural Machine Translation
-https://aclanthology.org/2021.acl-long.563/
-
 This folder contains source code for training DrNMT, a discriminatively trained reranker for neural machine translation.
 
 ## Data preparation
@@ -38,7 +36,7 @@ source_sentence_L_hypo_1
 source_sentence_L_hypo_N
 ```
 
-2. Download the [XLMR model](https://github.com/fairinternal/fairseq-py/tree/main/examples/xlmr#pre-trained-models).
+2. Download the [XLMR model](https://github.com/fairinternal/fairseq-py/tree/master/examples/xlmr#pre-trained-models).
 ```
 wget https://dl.fbaipublicfiles.com/fairseq/models/xlmr.base.tar.gz
 tar zxvf xlmr.base.tar.gz

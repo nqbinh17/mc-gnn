@@ -15,6 +15,7 @@ from fairseq.distributed import DistributedTimeoutWrapper
 
 
 class ModuleWithDelay(nn.Module):
+
     def __init__(self, delay):
         super().__init__()
         self.delay = delay
@@ -25,6 +26,7 @@ class ModuleWithDelay(nn.Module):
 
 
 class TestDistributedTimeoutWrapper(unittest.TestCase):
+
     def setUp(self):
         logging.disable(logging.CRITICAL)
 

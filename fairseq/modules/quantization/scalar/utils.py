@@ -16,9 +16,7 @@ from .modules import ActivationQuantizer, IntConv2d, IntEmbedding, IntLinear
 MAPPING = {nn.Linear: IntLinear, nn.Embedding: IntEmbedding, nn.Conv2d: IntConv2d}
 
 
-def quantize_model_(
-    model, p=0.2, bits=8, update_step=3000, method="histogram", remove_weights=False
-):
+def quantize_model_(model, p=0.2, bits=8, update_step=3000):
     """
     Replaces all modules with their scalar quantized counterpart and
     registers hooks to quantize the post-ativations of those modules.
@@ -29,10 +27,9 @@ def quantize_model_(
         - bits: number of bits
         - update_step: update quantization parameters every update_step steps
     """
+
     # quantize all layers
-    # remove weights indicates whether the weights extension should be removed, in addition to
-    # weight_orig and weight extension on names
-    quantized_layers = get_layers(model, "(.*?)", remove_weights=remove_weights)
+    quantized_layers = get_layers(model, "(.*?)")
 
     for layer in quantized_layers:
 
@@ -53,7 +50,7 @@ def quantize_model_(
             "p": p,
             "update_step": update_step,
             "bits": bits,
-            "method": method,
+            "method": "histogram",
             "counter": 0,
         }
 
@@ -71,7 +68,7 @@ def quantize_model_(
             continue
 
         # activation quantization
-        a_q = ActivationQuantizer(quantized_module, p=0, bits=bits, method=method)
+        a_q = ActivationQuantizer(quantized_module, p=0, bits=bits, method="histogram")
 
         # replace layer by its quantized counterpart
         attrsetter(layer)(model, quantized_module)

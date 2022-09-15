@@ -10,7 +10,6 @@ from fairseq.models import (
     register_model_architecture,
 )
 from fairseq.models.fconv import FConvDecoder
-from fairseq.utils import safe_hasattr
 
 
 @register_model("fconv_lm")
@@ -67,7 +66,7 @@ class FConvLanguageModel(FairseqLanguageModel):
         # make sure all arguments are present in older models
         base_lm_architecture(args)
 
-        if safe_hasattr(args, "max_target_positions") and not safe_hasattr(
+        if hasattr(args, "max_target_positions") and not hasattr(
             args, "tokens_per_sample"
         ):
             args.tokens_per_sample = args.max_target_positions
